@@ -1,11 +1,21 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 
+export interface Location {
+  lat: number;
+  lng: number;
+}
+
+export interface Activity {
+  name: string;
+  location: Location;
+}
+
 export interface DayPlan {
   id: string;
   title: string;
   color: string;
-  activities: string[];
+  activities: Activity[];
 }
 
 interface TravelState {
@@ -24,13 +34,21 @@ const initialState: TravelState = {
         id: 'day1',
         title: 'Day 1: LA 西半部景點',
         color: '#3B82F6', // 藍色
-        activities: ['Santa Monica Pier', 'Getty Center', 'The Grove']
+        activities: [
+          { name: 'Santa Monica Pier', location: { lat: 34.0099, lng: -118.4960 } },
+          { name: 'Getty Center', location: { lat: 34.0780, lng: -118.4741 } },
+          { name: 'The Grove', location: { lat: 34.0719, lng: -118.3565 } }
+        ]
       },
       {
         id: 'day2',
         title: 'Day 2: LA 中央市場 & NBA',
         color: '#F97316', // 橘色
-        activities: ['Grand Central Market', 'Angel\'s Flight Railway', 'Crypto.com Arena 看 NBA']
+        activities: [
+          { name: 'Grand Central Market', location: { lat: 34.0505, lng: -118.2486 } },
+          { name: "Angel's Flight Railway", location: { lat: 34.0513, lng: -118.2496 } },
+          { name: 'Crypto.com Arena', location: { lat: 34.0430, lng: -118.2673 } }
+        ]
       }
     ],
     '東京': [
@@ -38,7 +56,10 @@ const initialState: TravelState = {
         id: 'day1',
         title: 'Day 1: 澀谷 & 新宿',
         color: '#EC4899', // 粉色
-        activities: ['澀谷 Cross', '新宿御苑']
+        activities: [
+          { name: '澀谷 Scramble Crossing', location: { lat: 35.6595, lng: 139.7005 } },
+          { name: '新宿御苑', location: { lat: 35.6852, lng: 139.7101 } }
+        ]
       }
     ]
   },
@@ -51,7 +72,8 @@ export const travelSlice = createSlice({
   reducers: {
     selectRegion: (state, action: PayloadAction<string>) => {
       state.selectedRegion = action.payload;
-      state.selectedDayId = state.plans[action.payload][0]?.id || null;
+      const regionPlans = state.plans[action.payload];
+      state.selectedDayId = regionPlans && regionPlans.length > 0 ? regionPlans[0].id : null;
     },
     selectDay: (state, action: PayloadAction<string>) => {
       state.selectedDayId = action.payload;
