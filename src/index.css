@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -13,4 +11,5 @@ body {
   display: flex;
   min-width: 320px;
   min-height: 100vh;
+  background-color: #f9fafb; /* gray-50 */
 }
