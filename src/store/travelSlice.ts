@@ -24,6 +24,7 @@ interface TravelState {
   plans: Record<string, DayPlan[]>;
   selectedDayId: string | null;
   previewLocation: Activity | null;
+  focusedLocation: Location | null; // 新增：目前正在查看的特定座標
 }
 
 const COLOR_PALETTE = [
@@ -75,7 +76,8 @@ const initialState: TravelState = {
     ]
   },
   selectedDayId: 'day1',
-  previewLocation: null
+  previewLocation: null,
+  focusedLocation: null
 };
 
 export const travelSlice = createSlice({
@@ -87,84 +89,62 @@ export const travelSlice = createSlice({
       const regionPlans = state.plans[action.payload];
       state.selectedDayId = regionPlans && regionPlans.length > 0 ? regionPlans[0].id : null;
       state.previewLocation = null;
+      state.focusedLocation = null;
     },
     selectDay: (state, action: PayloadAction<string>) => {
       state.selectedDayId = action.payload;
+      state.focusedLocation = null; // 切換天數時重置聚焦
+    },
+    setPreviewLocation: (state, action: PayloadAction<Activity | null>) => {
+      state.previewLocation = action.payload;
+      if (action.payload) state.focusedLocation = null; // 搜尋時重置手動聚焦
+    },
+    // 新增：設定目前聚焦的座標
+    setFocusedLocation: (state, action: PayloadAction<Location | null>) => {
+      state.focusedLocation = action.payload;
+      if (action.payload) state.previewLocation = null; // 聚焦時重置搜尋預覽
     },
     addDay: (state) => {
       const region = state.selectedRegion;
       const currentPlans = state.plans[region] || [];
       const nextDayNum = currentPlans.length + 1;
       const newDayId = `day${nextDayNum}`;
-      
-      const newDay: DayPlan = {
+      state.plans[region].push({
         id: newDayId,
         title: `Day ${nextDayNum}: 新的行程`,
         color: COLOR_PALETTE[(nextDayNum - 1) % COLOR_PALETTE.length],
         activities: []
-      };
-
-      if (!state.plans[region]) state.plans[region] = [];
-      state.plans[region].push(newDay);
+      });
       state.selectedDayId = newDayId;
     },
-    // 強化刪除邏輯：自動遞補天數
     deleteDay: (state, action: PayloadAction<{ region: string, dayId: string }>) => {
       const { region, dayId } = action.payload;
-      
-      // 1. 過濾掉被刪除的那天
       const filteredPlans = state.plans[region].filter(p => p.id !== dayId);
-      
-      // 2. 重新索引剩下的天數
-      const reindexedPlans = filteredPlans.map((plan, index) => {
-        const newNum = index + 1;
-        const newId = `day${newNum}`;
-        
-        // 嘗試更新標題中的 "Day X" 字樣，保留後面的自定義文字
-        const updatedTitle = plan.title.replace(/Day \d+/, `Day ${newNum}`);
-        
-        return {
-          ...plan,
-          id: newId,
-          title: updatedTitle,
-          color: COLOR_PALETTE[index % COLOR_PALETTE.length] // 顏色也重新按順序分配，保持美觀
-        };
-      });
-
-      state.plans[region] = reindexedPlans;
-
-      // 3. 處理選中狀態
-      if (reindexedPlans.length === 0) {
-        state.selectedDayId = null;
-      } else {
-        // 簡單邏輯：刪除後一律選中第一天，或維持原索引（如果需要更複雜可以再調整）
-        state.selectedDayId = reindexedPlans[0].id;
-      }
-    },
-    setPreviewLocation: (state, action: PayloadAction<Activity | null>) => {
-      state.previewLocation = action.payload;
+      state.plans[region] = filteredPlans.map((plan, index) => ({
+        ...plan,
+        id: `day${index + 1}`,
+        title: plan.title.replace(/Day \d+/, `Day ${index + 1}`),
+        color: COLOR_PALETTE[index % COLOR_PALETTE.length]
+      }));
+      state.selectedDayId = state.plans[region][0]?.id || null;
     },
     addActivity: (state, action: PayloadAction<{ region: string, dayId: string, activity: Activity }>) => {
       const { region, dayId, activity } = action.payload;
       const dayPlan = state.plans[region]?.find(p => p.id === dayId);
-      if (dayPlan) {
-        dayPlan.activities.push(activity);
-      }
+      if (dayPlan) dayPlan.activities.push(activity);
       state.previewLocation = null;
     },
     removeActivity: (state, action: PayloadAction<{ region: string, dayId: string, index: number }>) => {
       const { region, dayId, index } = action.payload;
       const dayPlan = state.plans[region]?.find(p => p.id === dayId);
-      if (dayPlan) {
-        dayPlan.activities.splice(index, 1);
-      }
+      if (dayPlan) dayPlan.activities.splice(index, 1);
     }
   },
 });
 
 export const { 
   selectRegion, selectDay, addDay, deleteDay, 
-  setPreviewLocation, addActivity, removeActivity 
+  setPreviewLocation, setFocusedLocation, addActivity, removeActivity 
 } = travelSlice.actions;
 
 export default travelSlice.reducer;

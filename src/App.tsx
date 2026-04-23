@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Menu, X, MapPin, Calendar, Map as MapIcon, List, PlusCircle } from 'lucide-react';
 import type { RootState } from './store';
-import { selectRegion, selectDay, removeActivity, addDay, deleteDay } from './store/travelSlice';
-import type { DayPlan, Activity } from './store/travelSlice';
+import { selectRegion, selectDay, removeActivity, addDay, deleteDay, setFocusedLocation } from './store/travelSlice';
+import type { DayPlan, Activity, Location } from './store/travelSlice';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import TravelMap from './components/TravelMap';
@@ -36,7 +36,7 @@ function App() {
   };
 
   const handleDeleteDay = (e: React.MouseEvent, dayId: string) => {
-    e.stopPropagation(); // 防止觸發選取天數
+    e.stopPropagation();
     if (confirm(`確定要刪除整個 ${dayId.toUpperCase()} 的行程嗎？`)) {
       dispatch(deleteDay({ region: selectedRegion, dayId }));
     }
@@ -44,12 +44,13 @@ function App() {
 
   const handleDeleteActivity = (index: number) => {
     if (selectedDayId) {
-      dispatch(removeActivity({
-        region: selectedRegion,
-        dayId: selectedDayId,
-        index
-      }));
+      dispatch(removeActivity({ region: selectedRegion, dayId: selectedDayId, index }));
     }
+  };
+
+  const handleViewOnMap = (location: Location) => {
+    dispatch(setFocusedLocation(location)); // 設定地圖聚焦座標
+    setViewMode('map'); // 切換到地圖視圖
   };
 
   return (
@@ -110,7 +111,6 @@ function App() {
             </div>
           </header>
 
-          {/* 日期切換列 */}
           <div className="px-4 py-3 md:px-6 md:py-4 bg-white flex items-center gap-4 overflow-x-auto no-scrollbar border-b shadow-sm z-20">
             {currentPlans.map((plan: DayPlan) => (
               <div key={plan.id} className="relative group shrink-0">
@@ -129,11 +129,9 @@ function App() {
                   <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: plan.color }} />
                   <span className="font-bold whitespace-nowrap">{plan.id.toUpperCase()}</span>
                 </button>
-                {/* 刪除天數的 X 按鈕 - 手機版始終顯示，電腦版懸停顯示 */}
                 <button 
                   onClick={(e) => handleDeleteDay(e, plan.id)}
                   className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full hover:bg-red-500 hover:text-white text-gray-400 md:text-gray-300 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                  title="刪除此天數"
                 >
                   <X size={14} />
                 </button>
@@ -142,7 +140,6 @@ function App() {
             <button 
               onClick={handleAddDay}
               className="p-2 text-blue-500 hover:bg-blue-50 rounded-full transition-colors flex-shrink-0"
-              title="新增一天"
             >
               <PlusCircle size={28} />
             </button>
@@ -153,7 +150,7 @@ function App() {
               "flex-1 overflow-y-auto p-4 md:p-8 md:w-1/2 transition-all duration-300",
               viewMode === 'map' ? "hidden md:block" : "block"
             )}>
-              <div className="max-w-2xl mx-auto space-y-6">
+              <div className="max-w-2xl mx-auto space-y-6 text-left">
                 <div className="bg-blue-50/50 p-4 rounded-3xl border border-blue-100 shadow-inner">
                   <p className="text-xs font-bold text-blue-400 uppercase tracking-tighter mb-2 ml-1">快速新增景點</p>
                   <PlaceSearch />
@@ -175,14 +172,14 @@ function App() {
                             {index + 1}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center justify-between gap-2 text-left">
                               <h4 className="font-bold text-base md:text-xl text-gray-800 truncate md:whitespace-normal">{activity.name}</h4>
                               <button onClick={() => handleDeleteActivity(index)} className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0">
                                 <X size={20} />
                               </button>
                             </div>
                             <div className="flex items-center gap-4 mt-2">
-                              <button onClick={() => setViewMode('map')} className="flex items-center gap-1.5 text-blue-500 text-xs md:text-sm font-medium hover:underline">
+                              <button onClick={() => handleViewOnMap(activity.location)} className="flex items-center gap-1.5 text-blue-500 text-xs md:text-sm font-medium hover:underline">
                                 <MapPin size={14} />
                                 <span>在地圖上查看</span>
                               </button>

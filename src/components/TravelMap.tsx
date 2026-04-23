@@ -26,19 +26,20 @@ function MapHandler({ center, zoom = 12 }: { center: google.maps.LatLngLiteral, 
 
 export default function TravelMap() {
   const dispatch = useDispatch();
-  const { plans, selectedRegion, selectedDayId, previewLocation } = useSelector((state: RootState) => state.travel);
+  const { plans, selectedRegion, selectedDayId, previewLocation, focusedLocation } = useSelector((state: RootState) => state.travel);
   
   const [clickedLocation, setClickedLocation] = useState<{ pos: Location, name: string } | null>(null);
 
   const currentRegionPlans = plans[selectedRegion] || [];
   const selectedDay = currentRegionPlans.find(p => p.id === selectedDayId);
   
-  // 修正後的中心點邏輯：
-  // 1. 優先顯示搜尋預覽點
-  // 2. 其次顯示選中天數的第一個景點
-  // 3. 如果選中的天數沒景點，則顯示該地區（LA/東京）的中心點
-  // 4. 最後才是真正的保底
+  // 修正後的中心點邏輯優先級：
+  // 1. 搜尋預覽點 (previewLocation)
+  // 2. 列表點選聚焦 (focusedLocation)
+  // 3. 當天第一個景點
+  // 4. 地區中心點
   const center = previewLocation?.location || 
+                 focusedLocation || 
                  selectedDay?.activities[0]?.location || 
                  REGION_CENTERS[selectedRegion] || 
                  { lat: 35.6895, lng: 139.6917 };
@@ -76,7 +77,6 @@ export default function TravelMap() {
 
   return (
     <div className="w-full h-full bg-slate-100 relative group/map">
-      {/* 浮動搜尋框：僅在手機版 (小於 768px) 顯示，桌機版隱藏 */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[90%] z-20 md:hidden transition-all duration-300">
         <div className="bg-white/90 backdrop-blur-md p-2 rounded-3xl shadow-2xl border border-white/20">
           <PlaceSearch />
@@ -91,7 +91,8 @@ export default function TravelMap() {
         mapId={'bf51a910020fa1cf'} 
         onClick={handleMapClick}
       >
-        <MapHandler center={center} zoom={previewLocation ? 15 : 12} />
+        {/* 如果有聚焦座標或預覽座標，拉近一點看 */}
+        <MapHandler center={center} zoom={(previewLocation || focusedLocation) ? 15 : 12} />
 
         {currentRegionPlans.map((day: DayPlan) => (
           day.activities.map((activity: Activity, idx: number) => (
