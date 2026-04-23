@@ -1,72 +1,142 @@
-import { useEffect } from 'react';
-import { APIProvider, Map, AdvancedMarker, Pin, useMap } from '@vis.gl/react-google-maps';
-import { useSelector } from 'react-redux';
+import { useEffect, useState } from 'react';
+import { Map, AdvancedMarker, Pin, useMap, InfoWindow } from '@vis.gl/react-google-maps';
+import { useSelector, useDispatch } from 'react-redux';
+import { Plus } from 'lucide-react';
 import type { RootState } from '../store';
-import type { DayPlan, Activity } from '../store/travelSlice';
+import { addActivity } from '../store/travelSlice';
+import type { DayPlan, Activity, Location } from '../store/travelSlice';
+import PlaceSearch from './PlaceSearch';
 
-// google map金鑰
-const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+// 定義各地區的中心點
+const REGION_CENTERS: Record<string, Location> = {
+  'LA': { lat: 34.0522, lng: -118.2437 },
+  '東京': { lat: 35.6895, lng: 139.6917 }
+};
 
-// 建立一個內部元件來處理地圖跳轉邏輯
-function MapHandler({ center }: { center: google.maps.LatLngLiteral }) {
+function MapHandler({ center, zoom = 12 }: { center: google.maps.LatLngLiteral, zoom?: number }) {
   const map = useMap();
-
   useEffect(() => {
     if (map && center) {
-      map.panTo(center); // 平滑移動到新中心點
-      map.setZoom(12);   // 切換地區時自動調整縮放倍率
+      map.panTo(center);
+      if (zoom) map.setZoom(zoom);
     }
-  }, [map, center]);
-
+  }, [map, center, zoom]);
   return null;
 }
 
 export default function TravelMap() {
-  const { plans, selectedRegion, selectedDayId } = useSelector((state: RootState) => state.travel);
+  const dispatch = useDispatch();
+  const { plans, selectedRegion, selectedDayId, previewLocation } = useSelector((state: RootState) => state.travel);
   
+  const [clickedLocation, setClickedLocation] = useState<{ pos: Location, name: string } | null>(null);
+
   const currentRegionPlans = plans[selectedRegion] || [];
+  const selectedDay = currentRegionPlans.find(p => p.id === selectedDayId);
   
-  // 找出目前應該顯示的中心點
-  const selectedDay = currentRegionPlans.find(p => p.id === selectedDayId) || currentRegionPlans[0];
-  const center = selectedDay?.activities[0]?.location || { lat: 35.6895, lng: 139.6917 }; // 預設東京
+  // 修正後的中心點邏輯：
+  // 1. 優先顯示搜尋預覽點
+  // 2. 其次顯示選中天數的第一個景點
+  // 3. 如果選中的天數沒景點，則顯示該地區（LA/東京）的中心點
+  // 4. 最後才是真正的保底
+  const center = previewLocation?.location || 
+                 selectedDay?.activities[0]?.location || 
+                 REGION_CENTERS[selectedRegion] || 
+                 { lat: 35.6895, lng: 139.6917 };
+
+  const handleMapClick = (e: any) => {
+    if (e.detail.placeId) {
+      e.stop();
+      const service = new google.maps.places.PlacesService(document.createElement('div'));
+      service.getDetails({ placeId: e.detail.placeId }, (place, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && place?.geometry?.location) {
+          setClickedLocation({
+            pos: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
+            name: place.name || '未知地點'
+          });
+        }
+      });
+    } else {
+      setClickedLocation({
+        pos: { lat: e.detail.latLng.lat, lng: e.detail.latLng.lng },
+        name: '自定義地點'
+      });
+    }
+  };
+
+  const handleAddFromMap = () => {
+    if (clickedLocation && selectedDayId) {
+      dispatch(addActivity({
+        region: selectedRegion,
+        dayId: selectedDayId,
+        activity: { name: clickedLocation.name, location: clickedLocation.pos }
+      }));
+      setClickedLocation(null);
+    }
+  };
 
   return (
-    <div className="w-full h-full bg-slate-100 relative">
-      <APIProvider apiKey={API_KEY}>
-        <Map
-          defaultCenter={center}
-          defaultZoom={11}
-          gestureHandling={'greedy'}
-          disableDefaultUI={false}
-          mapId={'bf51a910020fa1cf'} 
-        >
-          {/* 加入跳轉處理器 */}
-          <MapHandler center={center} />
-
-          {currentRegionPlans.map((day: DayPlan) => (
-            day.activities.map((activity: Activity, idx: number) => (
-              <AdvancedMarker
-                key={`${day.id}-${idx}`}
-                position={activity.location}
-                title={activity.name}
-              >
-                <Pin 
-                  background={day.color} 
-                  glyphColor={'#fff'} 
-                  borderColor={'#fff'}
-                />
-              </AdvancedMarker>
-            ))
-          ))}
-        </Map>
-      </APIProvider>
-      
-      <div className="absolute top-4 left-4 bg-white/90 backdrop-blur shadow-md px-4 py-2 rounded-full border border-blue-100 z-10">
-        <p className="text-sm font-bold text-blue-600 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full animate-pulse bg-blue-600" />
-          正在顯示 {selectedRegion} 景點點位
-        </p>
+    <div className="w-full h-full bg-slate-100 relative group/map">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[90%] md:w-80 z-20 transition-all duration-300">
+        <div className="bg-white/90 backdrop-blur-md p-2 rounded-3xl shadow-2xl border border-white/20">
+          <PlaceSearch />
+        </div>
       </div>
+
+      <Map
+        defaultCenter={center}
+        defaultZoom={11}
+        gestureHandling={'greedy'}
+        disableDefaultUI={false}
+        mapId={'bf51a910020fa1cf'} 
+        onClick={handleMapClick}
+      >
+        <MapHandler center={center} zoom={previewLocation ? 15 : 12} />
+
+        {currentRegionPlans.map((day: DayPlan) => (
+          day.activities.map((activity: Activity, idx: number) => (
+            <AdvancedMarker
+              key={`${day.id}-${idx}`}
+              position={activity.location}
+              title={activity.name}
+            >
+              <Pin background={day.color} glyphColor={'#fff'} borderColor={'#fff'} />
+            </AdvancedMarker>
+          ))
+        ))}
+
+        {previewLocation && (
+          <AdvancedMarker
+            position={previewLocation.location}
+            title={`預覽：${previewLocation.name}`}
+            zIndex={100}
+          >
+            <div className="relative flex items-center justify-center">
+              <div className="absolute w-10 h-10 bg-yellow-400 rounded-full animate-ping opacity-20" />
+              <Pin background={'#FACC15'} glyphColor={'#000'} borderColor={'#fff'} scale={1.2} />
+            </div>
+          </AdvancedMarker>
+        )}
+
+        {clickedLocation && (
+          <InfoWindow
+            position={clickedLocation.pos}
+            onCloseClick={() => setClickedLocation(null)}
+          >
+            <div className="p-2 min-w-[150px]">
+              <h4 className="font-bold text-gray-800 text-sm mb-1">{clickedLocation.name}</h4>
+              <p className="text-[10px] text-gray-400 mb-3">要將此地點加入 {selectedDayId?.toUpperCase()} 嗎？</p>
+              <button
+                onClick={handleAddFromMap}
+                disabled={!selectedDayId}
+                className="w-full bg-blue-600 text-white py-2 rounded-lg flex items-center justify-center gap-1 text-xs font-bold hover:bg-blue-700 disabled:bg-gray-300 transition-colors"
+              >
+                <Plus size={14} />
+                新增至行程
+              </button>
+            </div>
+          </InfoWindow>
+        )}
+      </Map>
     </div>
   );
 }
