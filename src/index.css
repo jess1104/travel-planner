@@ -11,5 +11,55 @@ body {
   display: flex;
   min-width: 320px;
   min-height: 100vh;
-  background-color: #f9fafb; /* gray-50 */
+  background-color: #f9fafb;
+}
+
+/* 強制修正 Google Autocomplete 選單的樣式與層級 */
+.pac-container {
+  z-index: 99999 !important; /* 極高層級，確保不被任何元件擋住 */
+  border-radius: 1rem !important;
+  border: 1px solid #e2e8f0 !important;
+  margin-top: 5px !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+  font-family: inherit !important;
+  padding: 0.5rem 0 !important;
+  background-color: white !important;
+}
+
+.pac-item {
+  padding: 0.75rem 1rem !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  border-top: 1px solid #f1f5f9 !important;
+  line-height: 1.5 !important;
+}
+
+.pac-item:first-child {
+  border-top: none !important;
+}
+
+.pac-item:hover {
+  background-color: #f8fafc !important;
+}
+
+.pac-item-query {
+  font-size: 1rem !important;
+  color: #1e293b !important;
+  padding-right: 5px !important;
+}
+
+.pac-matched {
+  color: #3b82f6 !important;
+  font-weight: 600 !important;
+}
+
+.pac-icon {
+  margin-top: 0 !important;
+}
+
+/* 隱藏 Google 浮水印確保視覺乾淨 */
+.pac-logo:after {
+  display: none !important;
 }
