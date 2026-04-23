@@ -76,7 +76,8 @@ export default function TravelMap() {
 
   return (
     <div className="w-full h-full bg-slate-100 relative group/map">
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[90%] md:w-80 z-20 transition-all duration-300">
+      {/* 浮動搜尋框：僅在手機版 (小於 768px) 顯示，桌機版隱藏 */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[90%] z-20 md:hidden transition-all duration-300">
         <div className="bg-white/90 backdrop-blur-md p-2 rounded-3xl shadow-2xl border border-white/20">
           <PlaceSearch />
         </div>
