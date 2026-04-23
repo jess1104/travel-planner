@@ -1,48 +1,57 @@
 import { useEffect, useState } from 'react';
 import { Map, AdvancedMarker, Pin, useMap, InfoWindow } from '@vis.gl/react-google-maps';
 import { useSelector, useDispatch } from 'react-redux';
-import { Plus } from 'lucide-react';
+import { Plus, Navigation } from 'lucide-react';
 import type { RootState } from '../store';
-import { addActivity } from '../store/travelSlice';
+import { addActivity, setFocusedLocation } from '../store/travelSlice';
 import type { DayPlan, Activity, Location } from '../store/travelSlice';
 import PlaceSearch from './PlaceSearch';
 
-// 定義各地區的中心點
 const REGION_CENTERS: Record<string, Location> = {
   'LA': { lat: 34.0522, lng: -118.2437 },
   '東京': { lat: 35.6895, lng: 139.6917 }
 };
 
-function MapHandler({ center, zoom = 12 }: { center: google.maps.LatLngLiteral, zoom?: number }) {
+// 內部組件依然保留，用來處理來自 Redux 的「自動」跳轉（例如點選列表景點時）
+function MapHandler({ center }: { center: google.maps.LatLngLiteral }) {
   const map = useMap();
   useEffect(() => {
     if (map && center) {
       map.panTo(center);
-      if (zoom) map.setZoom(zoom);
+      map.setZoom(15);
     }
-  }, [map, center, zoom]);
+  }, [map, center]);
   return null;
 }
 
 export default function TravelMap() {
   const dispatch = useDispatch();
-  const { plans, selectedRegion, selectedDayId, previewLocation, focusedLocation } = useSelector((state: RootState) => state.travel);
+  const map = useMap(); // 在這裡也取得 map 實體
+  
+  const { plans, selectedRegion, selectedDayId, previewLocation, focusedLocation, userLocation } = useSelector((state: RootState) => state.travel);
   
   const [clickedLocation, setClickedLocation] = useState<{ pos: Location, name: string } | null>(null);
 
-  const currentRegionPlans = plans[selectedRegion] || [];
+  const currentRegionPlans = plans[selectedRegion || ''] || [];
   const selectedDay = currentRegionPlans.find(p => p.id === selectedDayId);
   
-  // 修正後的中心點邏輯優先級：
-  // 1. 搜尋預覽點 (previewLocation)
-  // 2. 列表點選聚焦 (focusedLocation)
-  // 3. 當天第一個景點
-  // 4. 地區中心點
-  const center = previewLocation?.location || 
-                 focusedLocation || 
+  // 計算目前的邏輯中心點
+  const center = focusedLocation || 
+                 previewLocation?.location || 
+                 userLocation || 
                  selectedDay?.activities[0]?.location || 
-                 REGION_CENTERS[selectedRegion] || 
+                 (selectedRegion ? REGION_CENTERS[selectedRegion] : null) || 
                  { lat: 35.6895, lng: 139.6917 };
+
+  // 手動回到自己位置的處理函式
+  const handleBackToSelf = () => {
+    if (map && userLocation) {
+      map.panTo(userLocation);
+      map.setZoom(15);
+      // 同步更新 Redux，確保狀態一致
+      dispatch(setFocusedLocation(userLocation));
+    }
+  };
 
   const handleMapClick = (e: any) => {
     if (e.detail.placeId) {
@@ -65,7 +74,7 @@ export default function TravelMap() {
   };
 
   const handleAddFromMap = () => {
-    if (clickedLocation && selectedDayId) {
+    if (clickedLocation && selectedDayId && selectedRegion) {
       dispatch(addActivity({
         region: selectedRegion,
         dayId: selectedDayId,
@@ -77,13 +86,15 @@ export default function TravelMap() {
 
   return (
     <div className="w-full h-full bg-slate-100 relative group/map">
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[90%] z-20 md:hidden transition-all duration-300">
-        <div className="bg-white/90 backdrop-blur-md p-2 rounded-3xl shadow-2xl border border-white/20">
+      {/* 恢復為原本的置中樣式 */}
+      <div className="absolute top-15 left-1/2 -translate-x-1/2 w-[90%] z-20 md:hidden transition-all duration-300">
+        <div className="bg-white/90 backdrop-blur-md p-1.5 rounded-2xl shadow-xl border border-white/20">
           <PlaceSearch />
         </div>
       </div>
 
       <Map
+
         defaultCenter={center}
         defaultZoom={11}
         gestureHandling={'greedy'}
@@ -91,8 +102,18 @@ export default function TravelMap() {
         mapId={'bf51a910020fa1cf'} 
         onClick={handleMapClick}
       >
-        {/* 如果有聚焦座標或預覽座標，拉近一點看 */}
-        <MapHandler center={center} zoom={(previewLocation || focusedLocation) ? 15 : 12} />
+        <MapHandler center={center} />
+
+        {userLocation && (
+          <AdvancedMarker position={userLocation} zIndex={1000}>
+            <div className="relative">
+              <div className="absolute inset-0 w-8 h-8 bg-blue-500/20 rounded-full animate-ping -translate-x-1/4 -translate-y-1/4" />
+              <div className="w-4 h-4 bg-white rounded-full shadow-md flex items-center justify-center p-0.5 border-2 border-blue-500">
+                <div className="w-full h-full bg-blue-500 rounded-full" />
+              </div>
+            </div>
+          </AdvancedMarker>
+        )}
 
         {currentRegionPlans.map((day: DayPlan) => (
           day.activities.map((activity: Activity, idx: number) => (
@@ -139,6 +160,17 @@ export default function TravelMap() {
           </InfoWindow>
         )}
       </Map>
+
+      {/* 修正後的按鈕：改呼叫 handleBackToSelf */}
+      {userLocation && (
+        <button 
+          onClick={handleBackToSelf}
+          className="absolute bottom-40 right-2 w-12 h-12 bg-white rounded-2xl shadow-xl border border-gray-100 flex items-center justify-center text-blue-600 hover:bg-blue-50 transition-all active:scale-90 z-20"
+          title="回到我的位置"
+        >
+          <Navigation size={24} fill="currentColor" className="rotate-45" />
+        </button>
+      )}
     </div>
   );
 }

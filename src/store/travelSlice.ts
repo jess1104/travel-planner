@@ -20,11 +20,12 @@ export interface DayPlan {
 
 interface TravelState {
   regions: string[];
-  selectedRegion: string;
+  selectedRegion: string | null;
   plans: Record<string, DayPlan[]>;
   selectedDayId: string | null;
   previewLocation: Activity | null;
-  focusedLocation: Location | null; // 新增：目前正在查看的特定座標
+  focusedLocation: Location | null;
+  userLocation: Location | null;
 }
 
 const COLOR_PALETTE = [
@@ -39,7 +40,7 @@ const COLOR_PALETTE = [
 
 const initialState: TravelState = {
   regions: ['LA', '東京'],
-  selectedRegion: 'LA',
+  selectedRegion: null, // 預設不選中
   plans: {
     'LA': [
       {
@@ -75,9 +76,10 @@ const initialState: TravelState = {
       }
     ]
   },
-  selectedDayId: 'day1',
+  selectedDayId: null, // 預設不選中
   previewLocation: null,
-  focusedLocation: null
+  focusedLocation: null,
+  userLocation: null
 };
 
 export const travelSlice = createSlice({
@@ -87,24 +89,44 @@ export const travelSlice = createSlice({
     selectRegion: (state, action: PayloadAction<string>) => {
       state.selectedRegion = action.payload;
       const regionPlans = state.plans[action.payload];
+      // 選中地區時，自動選中第一天
       state.selectedDayId = regionPlans && regionPlans.length > 0 ? regionPlans[0].id : null;
+      
+      // 自動聚焦到第一天的第一個景點
+      const firstActivity = regionPlans?.[0]?.activities[0];
+      if (firstActivity) {
+        state.focusedLocation = firstActivity.location;
+      }
       state.previewLocation = null;
-      state.focusedLocation = null;
+    },
+    // 新增：回到初始預設狀態
+    resetSelection: (state) => {
+      state.selectedRegion = null;
+      state.selectedDayId = null;
+      state.previewLocation = null;
+      state.focusedLocation = state.userLocation; // 回到自己位置
     },
     selectDay: (state, action: PayloadAction<string>) => {
       state.selectedDayId = action.payload;
-      state.focusedLocation = null; // 切換天數時重置聚焦
+      state.focusedLocation = null;
     },
     setPreviewLocation: (state, action: PayloadAction<Activity | null>) => {
       state.previewLocation = action.payload;
-      if (action.payload) state.focusedLocation = null; // 搜尋時重置手動聚焦
+      if (action.payload) state.focusedLocation = null;
     },
-    // 新增：設定目前聚焦的座標
     setFocusedLocation: (state, action: PayloadAction<Location | null>) => {
       state.focusedLocation = action.payload;
-      if (action.payload) state.previewLocation = null; // 聚焦時重置搜尋預覽
+      if (action.payload) state.previewLocation = null;
+    },
+    setUserLocation: (state, action: PayloadAction<Location | null>) => {
+      state.userLocation = action.payload;
+      // 只有在還沒選中任何地區時，才自動聚焦到使用者位置
+      if (action.payload && !state.selectedRegion && !state.focusedLocation) {
+        state.focusedLocation = action.payload;
+      }
     },
     addDay: (state) => {
+      if (!state.selectedRegion) return;
       const region = state.selectedRegion;
       const currentPlans = state.plans[region] || [];
       const nextDayNum = currentPlans.length + 1;
@@ -143,8 +165,8 @@ export const travelSlice = createSlice({
 });
 
 export const { 
-  selectRegion, selectDay, addDay, deleteDay, 
-  setPreviewLocation, setFocusedLocation, addActivity, removeActivity 
+  selectRegion, resetSelection, selectDay, addDay, deleteDay, 
+  setPreviewLocation, setFocusedLocation, setUserLocation, addActivity, removeActivity 
 } = travelSlice.actions;
 
 export default travelSlice.reducer;
