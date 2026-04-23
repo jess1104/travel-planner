@@ -16,7 +16,7 @@ body {
 
 /* 強制修正 Google Autocomplete 選單的樣式與層級 */
 .pac-container {
-  z-index: 99999 !important; /* 極高層級，確保不被任何元件擋住 */
+  z-index: 99999 !important;
   border-radius: 1rem !important;
   border: 1px solid #e2e8f0 !important;
   margin-top: 5px !important;
@@ -24,16 +24,26 @@ body {
   font-family: inherit !important;
   padding: 0.5rem 0 !important;
   background-color: white !important;
+  /* 增加最小寬度，確保在手機上不會太窄 */
+  min-width: 290px !important;
 }
 
 .pac-item {
-  padding: 0.75rem 1rem !important;
+  padding: 0.75rem 0.5rem !important; /* 縮小左右 padding */
   cursor: pointer !important;
   display: flex !important;
   align-items: center !important;
-  gap: 0.5rem !important;
+  gap: 0.4rem !important;
   border-top: 1px solid #f1f5f9 !important;
   line-height: 1.5 !important;
+  /* 讓單行內容可以左右滑動 */
+  overflow-x: auto !important;
+  white-space: nowrap !important;
+}
+
+/* 隱藏滾動條但保持功能 (自選) */
+.pac-item::-webkit-scrollbar {
+  display: none;
 }
 
 .pac-item:first-child {
@@ -47,7 +57,7 @@ body {
 .pac-item-query {
   font-size: 1rem !important;
   color: #1e293b !important;
-  padding-right: 5px !important;
+  padding-right: 4px !important;
 }
 
 .pac-matched {
@@ -57,9 +67,9 @@ body {
 
 .pac-icon {
   margin-top: 0 !important;
+  flex-shrink: 0 !important; /* 防止圖示被擠壓 */
 }
 
-/* 隱藏 Google 浮水印確保視覺乾淨 */
 .pac-logo:after {
   display: none !important;
 }
