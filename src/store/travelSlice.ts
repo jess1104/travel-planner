@@ -40,7 +40,7 @@ const COLOR_PALETTE = [
 ];
 
 const initialState: TravelState = {
-  regions: ['LA', '東京'],
+  regions: ['LA', '東京', '台北'],
   selectedRegion: null,
   plans: {
     'LA': [
@@ -69,6 +69,25 @@ const initialState: TravelState = {
         color: COLOR_PALETTE[2],
         activities: [
           { name: '澀谷 Scramble Crossing', location: { lat: 35.6595, lng: 139.7005 } }
+        ]
+      }
+    ],
+    '台北': [
+      {
+        id: 'day1',
+        title: 'Day 1: 台北地標之旅',
+        color: COLOR_PALETTE[3],
+        activities: [
+          { name: '台北 101', location: { lat: 25.0339, lng: 121.5644 } }
+        ]
+      },
+      {
+        id: 'day2',
+        title: 'Day 2: 巨蛋雙饗宴',
+        color: COLOR_PALETTE[4],
+        activities: [
+          { name: '台北大巨蛋', location: { lat: 25.0441, lng: 121.5606 } },
+          { name: '台北小巨蛋', location: { lat: 25.0511, lng: 121.5501 } }
         ]
       }
     ]

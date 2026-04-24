@@ -7,6 +7,13 @@ import { addActivity, setFocusedLocation, setNavigationTarget } from '../store/t
 import type { DayPlan, Activity, Location } from '../store/travelSlice';
 import PlaceSearch from './PlaceSearch';
 
+// 定義各地區的中心點
+const REGION_CENTERS: Record<string, Location> = {
+  'LA': { lat: 34.0522, lng: -118.2437 },
+  '東京': { lat: 35.6895, lng: 139.6917 },
+  '台北': { lat: 25.0339, lng: 121.5644 }
+};
+
 // 專門處理導航路線繪製的元件
 function Directions() {
   const map = useMap();
@@ -22,7 +29,7 @@ function Directions() {
     setDirectionsService(new routesLibrary.DirectionsService());
     setDirectionsRenderer(new routesLibrary.DirectionsRenderer({ 
       map,
-      suppressMarkers: true, // 不使用預設標記，因為我們有自定義的
+      suppressMarkers: true,
       polylineOptions: {
         strokeColor: '#3B82F6',
         strokeWeight: 5,
@@ -61,6 +68,7 @@ function Directions() {
           <Car size={18} />
           <span className="text-xs font-black uppercase tracking-widest">建議路線</span>
         </div>
+        <button onClick={() => setDuration('')} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
       </div>
       <h4 className="font-bold text-gray-800 text-sm truncate mb-1">到 {navigationTarget.name}</h4>
       <div className="flex items-center gap-1.5 text-blue-600 font-black text-xl">
@@ -93,18 +101,12 @@ export default function TravelMap() {
   const currentRegionPlans = plans[selectedRegion || ''] || [];
   const selectedDay = currentRegionPlans.find(p => p.id === selectedDayId);
   
-  // 核心修正：調整優先級
-  // 1. previewLocation: 搜尋中
-  // 2. focusedLocation: 點擊列表中「在地圖上查看」
-  // 3. selectedDay 第一個點: 切換 Day 1/2 時
-  // 4. REGION_CENTERS: 有選地區但沒景點時
-  // 5. userLocation: 初始保底
   const center = previewLocation?.location || 
                  focusedLocation || 
-                 userLocation || 
                  selectedDay?.activities[0]?.location || 
                  (selectedRegion ? REGION_CENTERS[selectedRegion] : null) || 
-                 { lat: 35.6895, lng: 139.6917 };
+                 userLocation || 
+                 { lat: 25.0339, lng: 121.5644 };
 
   const handleBackToSelf = () => {
     if (map && userLocation) {
@@ -162,8 +164,6 @@ export default function TravelMap() {
         onClick={handleMapClick}
       >
         <MapHandler center={center} />
-        
-        {/* 渲染路線 */}
         <Directions />
 
         {userLocation && (
@@ -183,6 +183,7 @@ export default function TravelMap() {
               key={`${day.id}-${idx}`}
               position={activity.location}
               title={activity.name}
+              onClick={() => dispatch(setNavigationTarget(activity))} // 點擊地圖上的 Pin 直接開始導航
             >
               <Pin background={day.color} glyphColor={'#fff'} borderColor={'#fff'} />
             </AdvancedMarker>
@@ -190,10 +191,7 @@ export default function TravelMap() {
         ))}
 
         {previewLocation && (
-          <AdvancedMarker
-            position={previewLocation.location}
-            zIndex={2000}
-          >
+          <AdvancedMarker position={previewLocation.location} zIndex={2000}>
             <div className="relative flex items-center justify-center">
               <div className="absolute w-12 h-12 bg-yellow-400 rounded-full animate-ping opacity-30" />
               <Pin background={'#FACC15'} glyphColor={'#000'} borderColor={'#fff'} scale={1.4} />
@@ -202,18 +200,11 @@ export default function TravelMap() {
         )}
 
         {clickedLocation && (
-          <InfoWindow
-            position={clickedLocation.pos}
-            onCloseClick={() => setClickedLocation(null)}
-          >
+          <InfoWindow position={clickedLocation.pos} onCloseClick={() => setClickedLocation(null)}>
             <div className="p-2 min-w-[150px] text-left">
               <h4 className="font-bold text-gray-800 text-sm mb-1">{clickedLocation.name}</h4>
               <p className="text-[10px] text-gray-400 mb-3">要將此地點加入 {selectedDayId?.toUpperCase()}嗎？</p>
-              <button
-                onClick={handleAddFromMap}
-                disabled={!selectedDayId}
-                className="w-full bg-blue-600 text-white py-2 rounded-lg flex items-center justify-center gap-1 text-xs font-bold hover:bg-blue-700 disabled:bg-gray-300 transition-colors"
-              >
+              <button onClick={handleAddFromMap} disabled={!selectedDayId} className="w-full bg-blue-600 text-white py-2 rounded-lg flex items-center justify-center gap-1 text-xs font-bold hover:bg-blue-700 disabled:bg-gray-300 transition-colors">
                 <Plus size={14} />
                 新增至行程
               </button>
@@ -222,31 +213,18 @@ export default function TravelMap() {
         )}
       </Map>
 
-      {/* 導航取消按鈕 */}
       {navigationTarget && (
-        <button 
-          onClick={() => dispatch(setNavigationTarget(null))}
-          className="absolute top-20 right-4 p-3 bg-red-500 text-white rounded-2xl shadow-xl hover:bg-red-600 transition-all z-20 flex items-center gap-2 font-bold text-xs"
-        >
+        <button onClick={() => dispatch(setNavigationTarget(null))} className="absolute top-20 right-4 p-3 bg-red-500 text-white rounded-2xl shadow-xl hover:bg-red-600 transition-all z-20 flex items-center gap-2 font-bold text-xs">
           <X size={16} />
           停止導航
         </button>
       )}
 
       {userLocation && (
-        <button 
-          onClick={handleBackToSelf}
-          className="absolute bottom-40 right-2 w-12 h-12 bg-white rounded-2xl shadow-xl border border-gray-100 flex items-center justify-center text-blue-600 hover:bg-blue-50 transition-all active:scale-90 z-20"
-          title="回到我的位置"
-        >
+        <button onClick={handleBackToSelf} className="absolute bottom-40 right-2 w-12 h-12 bg-white rounded-2xl shadow-xl border border-gray-100 flex items-center justify-center text-blue-600 hover:bg-blue-50 transition-all active:scale-90 z-20" title="回到我的位置">
           <Navigation size={24} fill="currentColor" className="rotate-45" />
         </button>
       )}
     </div>
   );
 }
-
-const REGION_CENTERS: Record<string, Location> = {
-  'LA': { lat: 34.0522, lng: -118.2437 },
-  '東京': { lat: 35.6895, lng: 139.6917 }
-};

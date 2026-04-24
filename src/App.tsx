@@ -69,11 +69,12 @@ function App() {
   const handleDeleteDay = (e: React.MouseEvent, dayId: string) => {
     e.stopPropagation();
     if (confirm(`確定要刪除整個 ${dayId.toUpperCase()} 的行程嗎？`)) {
-      dispatch(deleteDay({ region: selectedRegion!, dayId }));
+      dispatch(deleteDay({ region: selectedRegion!, dayId })); 
     }
   };
 
-  const handleDeleteActivity = (index: number) => {
+  const handleDeleteActivity = (e: React.MouseEvent, index: number) => {
+    e.stopPropagation();
     if (selectedDayId && selectedRegion) {
       dispatch(removeActivity({ region: selectedRegion, dayId: selectedDayId, index }));
     }
@@ -84,13 +85,14 @@ function App() {
     setViewMode('map');
   };
 
-  const handleStartNavigation = (activity: Activity) => {
-    dispatch(setNavigationTarget(activity)); // 設定地圖導航目標
-    setViewMode('map'); // 切換到地圖
+  const handleStartNavigation = (e: React.MouseEvent, activity: Activity) => {
+    e.stopPropagation(); // 防止觸發卡片的 handleViewOnMap
+    dispatch(setNavigationTarget(activity));
+    setViewMode('map');
   };
 
   return (
-    <APIProvider apiKey={API_KEY} libraries={['places', 'routes']}> {/* 加入 routes 庫 */}
+    <APIProvider apiKey={API_KEY} libraries={['places', 'routes']}>
       <div className="flex h-[100dvh] w-screen bg-gray-50 overflow-hidden font-sans text-slate-900 text-left">
         
         {isSidebarOpen && (
@@ -103,7 +105,7 @@ function App() {
         )}>
           <div className="p-4 border-b flex items-center justify-between min-h-[73px]">
             {(isSidebarOpen || window.innerWidth >= 768) && (
-              <button onClick={handleReset} className={cn("font-bold text-xl text-blue-600 truncate hover:opacity-70 transition-opacity", !isSidebarOpen && "md:hidden")}>Travel Go</button>
+              <button onClick={handleReset} className="font-bold text-xl text-blue-600 truncate hover:opacity-70 transition-opacity">Travel Go</button>
             )}
             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-gray-100 rounded-lg ml-auto">
               {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
@@ -147,7 +149,7 @@ function App() {
                 <Menu size={24} />
               </button>
             )}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 text-left">
               {selectedRegion ? (
                 <h2 className="text-xl md:text-2xl font-bold text-gray-800 truncate">{selectedRegion} 行程規劃</h2>
               ) : (
@@ -169,7 +171,7 @@ function App() {
           {selectedRegion && (
             <div className="px-4 py-3 md:px-6 md:py-4 bg-white flex items-center gap-4 overflow-x-auto no-scrollbar border-b shadow-sm z-20">
               {currentPlans.map((plan: DayPlan) => (
-                <div key={plan.id} className="relative group shrink-0">
+                <div key={plan.id} className="relative group shrink-0 text-left">
                   <button onClick={() => dispatch(selectDay(plan.id))} className={cn("flex items-center gap-2 pl-4 pr-10 py-2 rounded-full border-2 transition-all text-sm md:text-base relative", selectedDayId === plan.id ? "shadow-md scale-105" : "border-transparent bg-gray-50 opacity-60 hover:opacity-100")} style={{ borderColor: selectedDayId === plan.id ? plan.color : 'transparent', backgroundColor: selectedDayId === plan.id ? `${plan.color}15` : undefined, color: selectedDayId === plan.id ? plan.color : '#64748b' }}>
                     <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: plan.color }} />
                     <span className="font-bold whitespace-nowrap">{plan.id.toUpperCase()}</span>
@@ -185,7 +187,7 @@ function App() {
             </div>
           )}
 
-          <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+          <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative text-left">
             <div className={cn("flex-1 overflow-y-auto p-4 md:p-8 md:w-1/2 transition-all duration-300", (viewMode === 'map' || !selectedRegion) ? "hidden md:block" : "block")}>
               {selectedRegion ? (
                 <div className="max-w-2xl mx-auto space-y-6 text-left">
@@ -195,7 +197,7 @@ function App() {
                   </div>
 
                   {selectedDay ? (
-                    <div className="space-y-4">
+                    <div className="space-y-4 text-left">
                       <div className="flex items-center gap-3 mb-4">
                         <Calendar className="text-gray-400 w-5 h-5 md:w-6 md:h-6" />
                         <h3 className="text-lg md:text-2xl font-bold" style={{ color: selectedDay.color }}>{selectedDay.title}</h3>
@@ -203,20 +205,26 @@ function App() {
                       
                       <div className="space-y-4 md:space-y-6">
                         {selectedDay.activities.map((activity: Activity, index: number) => (
-                          <div key={index} className="flex items-start gap-4 md:gap-5 p-4 md:p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:border-blue-200 transition-all group">
+                          <div 
+                            key={index} 
+                            onClick={() => handleViewOnMap(activity.location)}
+                            className="flex items-start gap-4 md:gap-5 p-4 md:p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:border-blue-400 hover:shadow-md cursor-pointer transition-all group active:scale-[0.98]"
+                          >
                             <div className="mt-0.5 w-8 h-8 md:w-10 md:h-10 rounded-full flex-shrink-0 flex items-center justify-center text-white font-black text-sm md:text-base shadow-inner" style={{ backgroundColor: selectedDay.color }}>{index + 1}</div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between gap-2 text-left">
                                 <h4 className="font-bold text-base md:text-xl text-gray-800 truncate">{activity.name}</h4>
-                                <button onClick={() => handleDeleteActivity(index)} className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"><X size={20} /></button>
+                                <button onClick={(e) => handleDeleteActivity(e, index)} className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"><X size={20} /></button>
                               </div>
                               <div className="flex items-center gap-4 mt-3">
-                                <button onClick={() => handleViewOnMap(activity.location)} className="flex items-center gap-1.5 text-blue-500 text-xs md:text-sm font-bold hover:bg-blue-50 px-2 py-1 rounded-lg transition-colors">
+                                <div className="flex items-center gap-1.5 text-blue-500 text-xs md:text-sm font-bold opacity-60 group-hover:opacity-100 transition-opacity">
                                   <MapPin size={14} />
-                                  <span>查看地圖</span>
-                                </button>
-                                {/* 新增導航按鈕 */}
-                                <button onClick={() => handleStartNavigation(activity)} className="flex items-center gap-1.5 text-green-600 text-xs md:text-sm font-bold hover:bg-green-50 px-2 py-1 rounded-lg transition-colors border border-green-100">
+                                  <span>查看地圖位置</span>
+                                </div>
+                                <button 
+                                  onClick={(e) => handleStartNavigation(e, activity)}
+                                  className="flex items-center gap-1.5 bg-green-50 text-green-600 px-3 py-1 rounded-lg text-xs md:text-sm font-black hover:bg-green-600 hover:text-white transition-all border border-green-200"
+                                >
                                   <Route size={14} />
                                   <span>規劃路線</span>
                                 </button>
