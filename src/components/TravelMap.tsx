@@ -12,12 +12,13 @@ const REGION_CENTERS: Record<string, Location> = {
   '東京': { lat: 35.6895, lng: 139.6917 }
 };
 
+// 處理地圖跳轉邏輯
 function MapHandler({ center }: { center: google.maps.LatLngLiteral }) {
   const map = useMap();
   useEffect(() => {
     if (map && center) {
       map.panTo(center);
-      map.setZoom(15);
+      map.setZoom(13); // 切換時保持一個適中的縮放
     }
   }, [map, center]);
   return null;
@@ -25,7 +26,7 @@ function MapHandler({ center }: { center: google.maps.LatLngLiteral }) {
 
 export default function TravelMap() {
   const dispatch = useDispatch();
-  const map = useMap(); // 在這裡也取得 map 實體
+  const map = useMap();
   
   const { plans, selectedRegion, selectedDayId, previewLocation, focusedLocation, userLocation } = useSelector((state: RootState) => state.travel);
   
@@ -34,11 +35,17 @@ export default function TravelMap() {
   const currentRegionPlans = plans[selectedRegion || ''] || [];
   const selectedDay = currentRegionPlans.find(p => p.id === selectedDayId);
   
+  // 核心修正：調整優先級
+  // 1. previewLocation: 搜尋中
+  // 2. focusedLocation: 點擊列表中「在地圖上查看」
+  // 3. selectedDay 第一個點: 切換 Day 1/2 時
+  // 4. REGION_CENTERS: 有選地區但沒景點時
+  // 5. userLocation: 初始保底
   const center = previewLocation?.location || 
                  focusedLocation || 
-                 userLocation || 
                  selectedDay?.activities[0]?.location || 
                  (selectedRegion ? REGION_CENTERS[selectedRegion] : null) || 
+                 userLocation || 
                  { lat: 35.6895, lng: 139.6917 };
 
   const handleBackToSelf = () => {
