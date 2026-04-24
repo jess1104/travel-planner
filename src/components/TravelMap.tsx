@@ -160,6 +160,7 @@ export default function TravelMap() {
         defaultZoom={11}
         gestureHandling={'greedy'}
         disableDefaultUI={false}
+        mapId={'bf51a910020fa1cf'} 
         onClick={handleMapClick}
       >
         <MapHandler center={center} />
