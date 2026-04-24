@@ -1,16 +1,82 @@
-# React + Vite
+ Travel Go — 視覺化旅遊規劃地圖
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+  > 別再讓 Google 地圖上的星星亂成一團！ 一個專為「行程控」打造的視覺化工具，用顏色區分 Day 1, Day
+  2，讓地理分佈與時間規劃一目瞭然。
 
-Currently, two official plugins are available:
+  📖 核心理念： 傳統 Google 地圖雖然能儲存地點，但無法直覺地區分「哪一天要去哪裡」。Travel Go
+  透過色彩編碼，讓你在地圖上直接「看見」行程的地理流暢度。
+
+  ---
+
+  📌 目錄
+
+   1. 為什麼需要 Travel Go？ (#為什麼需要-travel-go)
+   2. 核心功能 (#核心功能)
+   3. 技術架構 (#技術架構)
+   4. 使用流程 (#使用流程)
+   5. 安裝方式 (#安裝方式)
+   6. 設計細節 (#設計細節)
+
+  ---
+
+  為什麼需要 Travel Go？
+
+  傳統旅遊規劃的痛點：
+   * Google 地圖標記太亂：所有想去的點都是同一種圖示，分不清 Day 1 還是 Day 2。
+   * 行程與位置脫節：看列表時不知道多遠，看地圖時找不到清單在哪。
+
+  Travel Go 的解決方案：
+   * 色彩編碼行程：Day 1 藍色、Day 2 橘色...
+     透過地圖點位顏色，立刻確認今天的行程是否都在同一個區域，避免跨區奔波。
+   * 地圖/列表完美連動：點擊列表，地圖自動跳轉；點擊標記，立刻開啟導航。
+
+  ---
+
+  核心功能
+
+  ┌───────────────────┬──────────────────────────────────────────────────────────────────────┐
+  │ 功能              │ 說明                                                                 │
+  ├───────────────────┼──────────────────────────────────────────────────────────────────────┤
+  │ 色彩標記系統      │ 每一天行程擁有專屬配色，地圖標記 (Pin) 與列表序號同步變色。          │
+  │ 動態目的地管理    │ 支援多目的地（如：LA、東京、泰國）切換，行程獨立不混淆。             │
+  │ 智慧搜尋面板      │ 搜尋景點時自動出現「黃色預覽點」並聚焦，確認後一鍵加入指定天數。     │
+  │ 即時導航路徑      │ 整合 Google Routes API，一鍵計算目前位置到目標景點的開車時間與路線。 │
+  │ 真實 GPS 追蹤     │ 支援瀏覽器定位，地圖上顯示藍色呼吸點，並附帶「回到我位置」快捷鍵。   │
+  │ LocalStorage 存檔 │ 無需註冊，所有規劃自動儲存在瀏覽器中，關閉分頁也不會遺失。           │
+  │ 響應式 RWD 介面   │ 針對手機版優化，具備收折式搜尋面板與漢堡選單，適合旅途中隨時查看。   │
+  └───────────────────┴──────────────────────────────────────────────────────────────────────┘
+  ---
+
+  技術架構
+
+   * Frontend: React 19 (TypeScript)
+   * State Management: Redux Toolkit (處理跨組件的地圖與行程狀態)
+   * Styling: Tailwind CSS v4 (極致效能與現代感設計)
+   * Map Engine: @vis.gl/react-google-maps (Google Maps 官方推薦封裝)
+   * Icons: Lucide React
+   * Storage: LocalStorage Persistence Middleware
+
+  ---
+
+  使用流程
+
+  Step 1：選擇或新增目的地
+  從側邊欄選擇預設的「台北」或「東京」，或點擊 「+」 自定義一個新的旅程（如：泰國旅遊）。
+
+  Step 2：搜尋並派發景點
+  在搜尋框輸入景點（如：鄭王廟）。面板會自動彈出，讓你可以：
+   * 確認地圖上的 黃色預覽點 是否正確。
+   * 選擇要加入的目的地與天數。
+   * 若當天天數不夠，點擊 「+ 新增一天」 直接建立。
+
+  Step 3：視覺化確認與導航
+   * 看地圖：透過顏色聚類，確認景點順序是否合理。
+   * 看列表：點擊景點卡片，地圖會平滑跳轉到該點。
+   * 點導航：點擊「規劃路線」，立刻看見路徑藍線與預估抵達時間。
+
+
+  如果你有任何功能建議，歡迎隨時提出！React + Vite
+
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
 - [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
