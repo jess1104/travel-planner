@@ -39,7 +39,7 @@ const COLOR_PALETTE = [
   '#EF4444', // Red
 ];
 
-const initialState: TravelState = {
+const defaultInitialState: TravelState = {
   regions: ['LA', '東京', '台北'],
   selectedRegion: null,
   plans: {
@@ -101,7 +101,7 @@ const initialState: TravelState = {
 
 export const travelSlice = createSlice({
   name: 'travel',
-  initialState,
+  initialState: defaultInitialState,
   reducers: {
     selectRegion: (state, action: PayloadAction<string>) => {
       state.selectedRegion = action.payload;
@@ -137,6 +137,10 @@ export const travelSlice = createSlice({
       state.previewLocation = null;
       state.focusedLocation = state.userLocation;
       state.navigationTarget = null;
+    },
+    // 純淨的重置：只回傳預設狀態
+    clearAllData: () => {
+      return defaultInitialState;
     },
     selectDay: (state, action: PayloadAction<string>) => {
       state.selectedDayId = action.payload;
@@ -215,7 +219,7 @@ export const travelSlice = createSlice({
 });
 
 export const { 
-  selectRegion, addRegion, resetSelection, selectDay, addDay, deleteDay, 
+  selectRegion, addRegion, resetSelection, clearAllData, selectDay, addDay, deleteDay, 
   setPreviewLocation, setFocusedLocation, setUserLocation, setNavigationTarget, addActivity, removeActivity 
 } = travelSlice.actions;
 

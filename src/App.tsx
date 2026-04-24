@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Menu, X, MapPin, Calendar, Map as MapIcon, List, PlusCircle, Plus, MapPinPlus, Navigation, Route } from 'lucide-react';
+import { Menu, X, MapPin, Calendar, Map as MapIcon, List, PlusCircle, Plus, MapPinPlus, Navigation, Route, Trash2 } from 'lucide-react';
 import type { RootState } from './store';
 import { selectRegion, selectDay, removeActivity, addDay, deleteDay, setFocusedLocation, setUserLocation, resetSelection, addRegion, setNavigationTarget } from './store/travelSlice';
 import type { DayPlan, Activity, Location } from './store/travelSlice';
@@ -140,6 +140,28 @@ function App() {
               </button>
             ))}
           </nav>
+
+          {/* 側邊欄底部工具 */}
+          {isSidebarOpen && (
+            <div className="p-4 border-t border-gray-100">
+              <button 
+                onClick={() => {
+                  if (confirm("確定要刪除所有自定義行程，恢復預設嗎？")) {
+                    // 1. 先清除硬碟上的儲存
+                    localStorage.removeItem('travel-planner-state');
+                    // 2. 再重置程式內的狀態
+                    dispatch(clearAllData());
+                    // 3. 重新整理確保萬無一失
+                    window.location.reload();
+                  }
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+              >
+                <Trash2 size={14} />
+                清除所有紀錄
+              </button>
+            </div>
+          )}
         </aside>
 
         <main className="flex-1 flex flex-col h-full overflow-hidden relative">
