@@ -40,7 +40,7 @@ const COLOR_PALETTE = [
 
 const initialState: TravelState = {
   regions: ['LA', '東京'],
-  selectedRegion: null, // 預設不選中
+  selectedRegion: null,
   plans: {
     'LA': [
       {
@@ -49,17 +49,14 @@ const initialState: TravelState = {
         color: COLOR_PALETTE[0],
         activities: [
           { name: 'Santa Monica Pier', location: { lat: 34.0099, lng: -118.4960 } },
-          { name: 'Getty Center', location: { lat: 34.0780, lng: -118.4741 } },
-          { name: 'The Grove', location: { lat: 34.0719, lng: -118.3565 } }
+          { name: 'Getty Center', location: { lat: 34.0780, lng: -118.4741 } }
         ]
       },
       {
         id: 'day2',
-        title: 'Day 2: LA 中央市場 & NBA',
+        title: 'Day 2: NBA 賽事體驗',
         color: COLOR_PALETTE[1],
         activities: [
-          { name: 'Grand Central Market', location: { lat: 34.0505, lng: -118.2486 } },
-          { name: "Angel's Flight Railway", location: { lat: 34.0513, lng: -118.2496 } },
           { name: 'Crypto.com Arena', location: { lat: 34.0430, lng: -118.2673 } }
         ]
       }
@@ -70,13 +67,12 @@ const initialState: TravelState = {
         title: 'Day 1: 澀谷 & 新宿',
         color: COLOR_PALETTE[2],
         activities: [
-          { name: '澀谷 Scramble Crossing', location: { lat: 35.6595, lng: 139.7005 } },
-          { name: '新宿御苑', location: { lat: 35.6852, lng: 139.7101 } }
+          { name: '澀谷 Scramble Crossing', location: { lat: 35.6595, lng: 139.7005 } }
         ]
       }
     ]
   },
-  selectedDayId: null, // 預設不選中
+  selectedDayId: null,
   previewLocation: null,
   focusedLocation: null,
   userLocation: null
@@ -99,12 +95,31 @@ export const travelSlice = createSlice({
       }
       state.previewLocation = null;
     },
-    // 新增：回到初始預設狀態
+    // 新增：新增一個目的地地區
+    addRegion: (state, action: PayloadAction<string>) => {
+      const newRegionName = action.payload;
+      if (!state.regions.includes(newRegionName)) {
+        state.regions.push(newRegionName);
+        // 初始化該地區的 Day 1
+        state.plans[newRegionName] = [
+          {
+            id: 'day1',
+            title: `Day 1: ${newRegionName} 開啟旅程`,
+            color: COLOR_PALETTE[0],
+            activities: []
+          }
+        ];
+        // 自動切換到新地區
+        state.selectedRegion = newRegionName;
+        state.selectedDayId = 'day1';
+        state.focusedLocation = null;
+      }
+    },
     resetSelection: (state) => {
       state.selectedRegion = null;
       state.selectedDayId = null;
       state.previewLocation = null;
-      state.focusedLocation = state.userLocation; // 回到自己位置
+      state.focusedLocation = state.userLocation;
     },
     selectDay: (state, action: PayloadAction<string>) => {
       state.selectedDayId = action.payload;
@@ -120,8 +135,7 @@ export const travelSlice = createSlice({
     },
     setUserLocation: (state, action: PayloadAction<Location | null>) => {
       state.userLocation = action.payload;
-      // 只有在還沒選中任何地區時，才自動聚焦到使用者位置
-      if (action.payload && !state.selectedRegion && !state.focusedLocation) {
+      if (!state.selectedRegion && !state.focusedLocation) {
         state.focusedLocation = action.payload;
       }
     },
@@ -153,19 +167,25 @@ export const travelSlice = createSlice({
     addActivity: (state, action: PayloadAction<{ region: string, dayId: string, activity: Activity }>) => {
       const { region, dayId, activity } = action.payload;
       const dayPlan = state.plans[region]?.find(p => p.id === dayId);
-      if (dayPlan) dayPlan.activities.push(activity);
+      if (dayPlan) {
+        dayPlan.activities.push(activity);
+        // 優化：新增成功後，將地圖聚焦在剛新增的景點上
+        state.focusedLocation = activity.location;
+      }
       state.previewLocation = null;
     },
     removeActivity: (state, action: PayloadAction<{ region: string, dayId: string, index: number }>) => {
       const { region, dayId, index } = action.payload;
       const dayPlan = state.plans[region]?.find(p => p.id === dayId);
-      if (dayPlan) dayPlan.activities.splice(index, 1);
+      if (dayPlan) {
+        dayPlan.activities.splice(index, 1);
+      }
     }
   },
 });
 
 export const { 
-  selectRegion, resetSelection, selectDay, addDay, deleteDay, 
+  selectRegion, addRegion, resetSelection, selectDay, addDay, deleteDay, 
   setPreviewLocation, setFocusedLocation, setUserLocation, addActivity, removeActivity 
 } = travelSlice.actions;
 

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Menu, X, MapPin, Calendar, Map as MapIcon, List, PlusCircle } from 'lucide-react';
+import { Menu, X, MapPin, Calendar, Map as MapIcon, List, PlusCircle, Plus, MapPinPlus } from 'lucide-react';
 import type { RootState } from './store';
-import { selectRegion, selectDay, removeActivity, addDay, deleteDay, setFocusedLocation, setUserLocation, resetSelection } from './store/travelSlice';
+import { selectRegion, selectDay, removeActivity, addDay, deleteDay, setFocusedLocation, setUserLocation, resetSelection, addRegion } from './store/travelSlice';
 import type { DayPlan, Activity, Location } from './store/travelSlice';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -19,6 +19,8 @@ function cn(...inputs: ClassValue[]) {
 function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('map');
+  const [newRegionName, setNewRegionName] = useState('');
+  const [isAddingRegion, setIsAddingRegion] = useState(false);
   
   const { regions, selectedRegion, plans, selectedDayId } = useSelector((state: RootState) => state.travel);
   const dispatch = useDispatch();
@@ -48,12 +50,21 @@ function App() {
 
   const handleReset = () => {
     dispatch(resetSelection());
-    setViewMode('map'); // 回到地圖視圖
+    setViewMode('map');
     if (window.innerWidth < 768) setIsSidebarOpen(false);
   };
 
   const handleAddDay = () => {
     dispatch(addDay());
+  };
+
+  const handleCreateRegion = () => {
+    if (newRegionName.trim()) {
+      dispatch(addRegion(newRegionName.trim()));
+      setNewRegionName('');
+      setIsAddingRegion(false);
+      if (window.innerWidth < 768) setIsSidebarOpen(false);
+    }
   };
 
   const handleDeleteDay = (e: React.MouseEvent, dayId: string) => {
@@ -101,7 +112,34 @@ function App() {
           </div>
 
           <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-            {isSidebarOpen && <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">我的旅程</p>}
+            <div className="flex items-center justify-between mb-2">
+              {isSidebarOpen && <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">我的目的地</p>}
+              {isSidebarOpen && (
+                <button onClick={() => setIsAddingRegion(!isAddingRegion)} className="text-blue-500 hover:bg-blue-50 p-1 rounded-md transition-colors">
+                  <Plus size={18} />
+                </button>
+              )}
+            </div>
+
+            {/* 新增地區輸入框 */}
+            {isAddingRegion && isSidebarOpen && (
+              <div className="p-2 bg-blue-50/50 rounded-xl space-y-2 mb-4 border border-blue-100 animate-in slide-in-from-top-1">
+                <input 
+                  autoFocus
+                  type="text"
+                  placeholder="例如：泰國"
+                  value={newRegionName}
+                  onChange={(e) => setNewRegionName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCreateRegion()}
+                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-400 shadow-sm"
+                />
+                <div className="flex gap-2">
+                  <button onClick={handleCreateRegion} className="flex-1 bg-blue-600 text-white text-xs py-1.5 rounded-lg font-bold">建立</button>
+                  <button onClick={() => setIsAddingRegion(false)} className="flex-1 bg-gray-200 text-gray-600 text-xs py-1.5 rounded-lg font-bold">取消</button>
+                </div>
+              </div>
+            )}
+
             {regions.map((region: string) => (
               <button
                 key={region}
@@ -115,6 +153,16 @@ function App() {
                 {(isSidebarOpen || (window.innerWidth < 768)) && <span className="truncate">{region}</span>}
               </button>
             ))}
+
+            {/* 收折時的新增按鈕 */}
+            {!isSidebarOpen && window.innerWidth >= 768 && (
+              <button 
+                onClick={() => { setIsSidebarOpen(true); setIsAddingRegion(true); }}
+                className="w-full flex items-center justify-center p-3 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
+              >
+                <MapPinPlus size={20} />
+              </button>
+            )}
           </nav>
         </aside>
 
@@ -244,7 +292,7 @@ function App() {
                     <MapIcon size={40} />
                   </div>
                   <h3 className="text-xl font-bold text-gray-700">準備好要去哪裡玩了嗎？</h3>
-                  <p className="max-w-xs">請點選左側選單中的地區，開始規劃你的專屬旅程。</p>
+                  <p className="max-w-xs">請點選左側選單中的地區，或點擊「+」新增目的地。</p>
                 </div>
               )}
             </div>

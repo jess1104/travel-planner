@@ -12,7 +12,6 @@ const REGION_CENTERS: Record<string, Location> = {
   '東京': { lat: 35.6895, lng: 139.6917 }
 };
 
-// 內部組件依然保留，用來處理來自 Redux 的「自動」跳轉（例如點選列表景點時）
 function MapHandler({ center }: { center: google.maps.LatLngLiteral }) {
   const map = useMap();
   useEffect(() => {
@@ -35,20 +34,17 @@ export default function TravelMap() {
   const currentRegionPlans = plans[selectedRegion || ''] || [];
   const selectedDay = currentRegionPlans.find(p => p.id === selectedDayId);
   
-  // 計算目前的邏輯中心點
-  const center = focusedLocation || 
-                 previewLocation?.location || 
+  const center = previewLocation?.location || 
+                 focusedLocation || 
                  userLocation || 
                  selectedDay?.activities[0]?.location || 
                  (selectedRegion ? REGION_CENTERS[selectedRegion] : null) || 
                  { lat: 35.6895, lng: 139.6917 };
 
-  // 手動回到自己位置的處理函式
   const handleBackToSelf = () => {
     if (map && userLocation) {
       map.panTo(userLocation);
       map.setZoom(15);
-      // 同步更新 Redux，確保狀態一致
       dispatch(setFocusedLocation(userLocation));
     }
   };
@@ -85,16 +81,14 @@ export default function TravelMap() {
   };
 
   return (
-    <div className="w-full h-full bg-slate-100 relative group/map">
-      {/* 恢復為原本的置中樣式 */}
+    <div className="w-full h-full bg-slate-100 relative group/map text-left">
       <div className="absolute top-15 left-1/2 -translate-x-1/2 w-[90%] z-20 md:hidden transition-all duration-300">
-        <div className="bg-white/90 backdrop-blur-md p-1.5 rounded-2xl shadow-xl border border-white/20">
+        <div className="bg-white/90 backdrop-blur-md p-1.5 rounded-2xl shadow-xl border border-white/20 text-left">
           <PlaceSearch />
         </div>
       </div>
 
       <Map
-
         defaultCenter={center}
         defaultZoom={11}
         gestureHandling={'greedy'}
@@ -127,15 +121,15 @@ export default function TravelMap() {
           ))
         ))}
 
+        {/* 預覽標記 - 僅顯示發光黃點 */}
         {previewLocation && (
           <AdvancedMarker
             position={previewLocation.location}
-            title={`預覽：${previewLocation.name}`}
-            zIndex={100}
+            zIndex={2000}
           >
             <div className="relative flex items-center justify-center">
-              <div className="absolute w-10 h-10 bg-yellow-400 rounded-full animate-ping opacity-20" />
-              <Pin background={'#FACC15'} glyphColor={'#000'} borderColor={'#fff'} scale={1.2} />
+              <div className="absolute w-12 h-12 bg-yellow-400 rounded-full animate-ping opacity-30" />
+              <Pin background={'#FACC15'} glyphColor={'#000'} borderColor={'#fff'} scale={1.4} />
             </div>
           </AdvancedMarker>
         )}
@@ -145,9 +139,9 @@ export default function TravelMap() {
             position={clickedLocation.pos}
             onCloseClick={() => setClickedLocation(null)}
           >
-            <div className="p-2 min-w-[150px]">
+            <div className="p-2 min-w-[150px] text-left">
               <h4 className="font-bold text-gray-800 text-sm mb-1">{clickedLocation.name}</h4>
-              <p className="text-[10px] text-gray-400 mb-3">要將此地點加入 {selectedDayId?.toUpperCase()} 嗎？</p>
+              <p className="text-[10px] text-gray-400 mb-3">要將此地點加入 {selectedDayId?.toUpperCase()}嗎？</p>
               <button
                 onClick={handleAddFromMap}
                 disabled={!selectedDayId}
@@ -161,7 +155,6 @@ export default function TravelMap() {
         )}
       </Map>
 
-      {/* 修正後的按鈕：改呼叫 handleBackToSelf */}
       {userLocation && (
         <button 
           onClick={handleBackToSelf}
