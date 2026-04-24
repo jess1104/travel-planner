@@ -1,24 +1,82 @@
 import { useEffect, useState } from 'react';
-import { Map, AdvancedMarker, Pin, useMap, InfoWindow } from '@vis.gl/react-google-maps';
+import { Map, AdvancedMarker, Pin, useMap, InfoWindow, useMapsLibrary } from '@vis.gl/react-google-maps';
 import { useSelector, useDispatch } from 'react-redux';
-import { Plus, Navigation } from 'lucide-react';
+import { Plus, Navigation, X, Clock, Car } from 'lucide-react';
 import type { RootState } from '../store';
-import { addActivity, setFocusedLocation } from '../store/travelSlice';
+import { addActivity, setFocusedLocation, setNavigationTarget } from '../store/travelSlice';
 import type { DayPlan, Activity, Location } from '../store/travelSlice';
 import PlaceSearch from './PlaceSearch';
 
-const REGION_CENTERS: Record<string, Location> = {
-  'LA': { lat: 34.0522, lng: -118.2437 },
-  '東京': { lat: 35.6895, lng: 139.6917 }
-};
+// 專門處理導航路線繪製的元件
+function Directions() {
+  const map = useMap();
+  const routesLibrary = useMapsLibrary('routes');
+  const { userLocation, navigationTarget } = useSelector((state: RootState) => state.travel);
+  
+  const [directionsService, setDirectionsService] = useState<google.maps.DirectionsService>();
+  const [directionsRenderer, setDirectionsRenderer] = useState<google.maps.DirectionsRenderer>();
+  const [duration, setDuration] = useState<string>('');
 
-// 處理地圖跳轉邏輯
+  useEffect(() => {
+    if (!routesLibrary || !map) return;
+    setDirectionsService(new routesLibrary.DirectionsService());
+    setDirectionsRenderer(new routesLibrary.DirectionsRenderer({ 
+      map,
+      suppressMarkers: true, // 不使用預設標記，因為我們有自定義的
+      polylineOptions: {
+        strokeColor: '#3B82F6',
+        strokeWeight: 5,
+        strokeOpacity: 0.8
+      }
+    }));
+  }, [routesLibrary, map]);
+
+  useEffect(() => {
+    if (!directionsService || !directionsRenderer || !userLocation || !navigationTarget) {
+      if (directionsRenderer) directionsRenderer.setDirections({ routes: [] });
+      setDuration('');
+      return;
+    }
+
+    directionsService.route({
+      origin: userLocation,
+      destination: navigationTarget.location,
+      travelMode: google.maps.TravelMode.DRIVING
+    }).then(response => {
+      directionsRenderer.setDirections(response);
+      const leg = response.routes[0].legs[0];
+      if (leg && leg.duration) {
+        setDuration(leg.duration.text);
+      }
+    }).catch(e => console.error("導航失敗:", e));
+
+  }, [directionsService, directionsRenderer, userLocation, navigationTarget]);
+
+  if (!navigationTarget || !duration) return null;
+
+  return (
+    <div className="absolute bottom-5 left-4 right-4 md:left-auto md:right-4 md:w-64 bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl p-4 border border-blue-100 z-30 animate-in slide-in-from-bottom-2">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2 text-blue-600">
+          <Car size={18} />
+          <span className="text-xs font-black uppercase tracking-widest">建議路線</span>
+        </div>
+      </div>
+      <h4 className="font-bold text-gray-800 text-sm truncate mb-1">到 {navigationTarget.name}</h4>
+      <div className="flex items-center gap-1.5 text-blue-600 font-black text-xl">
+        <Clock size={20} />
+        <span>{duration}</span>
+      </div>
+    </div>
+  );
+}
+
 function MapHandler({ center }: { center: google.maps.LatLngLiteral }) {
   const map = useMap();
   useEffect(() => {
     if (map && center) {
       map.panTo(center);
-      map.setZoom(13); // 切換時保持一個適中的縮放
+      map.setZoom(13);
     }
   }, [map, center]);
   return null;
@@ -28,7 +86,7 @@ export default function TravelMap() {
   const dispatch = useDispatch();
   const map = useMap();
   
-  const { plans, selectedRegion, selectedDayId, previewLocation, focusedLocation, userLocation } = useSelector((state: RootState) => state.travel);
+  const { plans, selectedRegion, selectedDayId, previewLocation, focusedLocation, userLocation, navigationTarget } = useSelector((state: RootState) => state.travel);
   
   const [clickedLocation, setClickedLocation] = useState<{ pos: Location, name: string } | null>(null);
 
@@ -43,9 +101,9 @@ export default function TravelMap() {
   // 5. userLocation: 初始保底
   const center = previewLocation?.location || 
                  focusedLocation || 
+                 userLocation || 
                  selectedDay?.activities[0]?.location || 
                  (selectedRegion ? REGION_CENTERS[selectedRegion] : null) || 
-                 userLocation || 
                  { lat: 35.6895, lng: 139.6917 };
 
   const handleBackToSelf = () => {
@@ -89,7 +147,7 @@ export default function TravelMap() {
 
   return (
     <div className="w-full h-full bg-slate-100 relative group/map text-left">
-      <div className="absolute top-15 left-1/2 -translate-x-1/2 w-[90%] z-20 md:hidden transition-all duration-300">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[90%] z-20 md:hidden transition-all duration-300">
         <div className="bg-white/90 backdrop-blur-md p-1.5 rounded-2xl shadow-xl border border-white/20 text-left">
           <PlaceSearch />
         </div>
@@ -104,6 +162,9 @@ export default function TravelMap() {
         onClick={handleMapClick}
       >
         <MapHandler center={center} />
+        
+        {/* 渲染路線 */}
+        <Directions />
 
         {userLocation && (
           <AdvancedMarker position={userLocation} zIndex={1000}>
@@ -128,7 +189,6 @@ export default function TravelMap() {
           ))
         ))}
 
-        {/* 預覽標記 - 僅顯示發光黃點 */}
         {previewLocation && (
           <AdvancedMarker
             position={previewLocation.location}
@@ -162,6 +222,17 @@ export default function TravelMap() {
         )}
       </Map>
 
+      {/* 導航取消按鈕 */}
+      {navigationTarget && (
+        <button 
+          onClick={() => dispatch(setNavigationTarget(null))}
+          className="absolute top-20 right-4 p-3 bg-red-500 text-white rounded-2xl shadow-xl hover:bg-red-600 transition-all z-20 flex items-center gap-2 font-bold text-xs"
+        >
+          <X size={16} />
+          停止導航
+        </button>
+      )}
+
       {userLocation && (
         <button 
           onClick={handleBackToSelf}
@@ -174,3 +245,8 @@ export default function TravelMap() {
     </div>
   );
 }
+
+const REGION_CENTERS: Record<string, Location> = {
+  'LA': { lat: 34.0522, lng: -118.2437 },
+  '東京': { lat: 35.6895, lng: 139.6917 }
+};

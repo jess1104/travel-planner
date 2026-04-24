@@ -26,6 +26,7 @@ interface TravelState {
   previewLocation: Activity | null;
   focusedLocation: Location | null;
   userLocation: Location | null;
+  navigationTarget: Activity | null;
 }
 
 const COLOR_PALETTE = [
@@ -75,7 +76,8 @@ const initialState: TravelState = {
   selectedDayId: null,
   previewLocation: null,
   focusedLocation: null,
-  userLocation: null
+  userLocation: null,
+  navigationTarget: null
 };
 
 export const travelSlice = createSlice({
@@ -85,22 +87,18 @@ export const travelSlice = createSlice({
     selectRegion: (state, action: PayloadAction<string>) => {
       state.selectedRegion = action.payload;
       const regionPlans = state.plans[action.payload];
-      // 選中地區時，自動選中第一天
       state.selectedDayId = regionPlans && regionPlans.length > 0 ? regionPlans[0].id : null;
-      
-      // 自動聚焦到第一天的第一個景點
       const firstActivity = regionPlans?.[0]?.activities[0];
       if (firstActivity) {
         state.focusedLocation = firstActivity.location;
       }
       state.previewLocation = null;
+      state.navigationTarget = null;
     },
-    // 新增：新增一個目的地地區
     addRegion: (state, action: PayloadAction<string>) => {
       const newRegionName = action.payload;
       if (!state.regions.includes(newRegionName)) {
         state.regions.push(newRegionName);
-        // 初始化該地區的 Day 1
         state.plans[newRegionName] = [
           {
             id: 'day1',
@@ -109,7 +107,6 @@ export const travelSlice = createSlice({
             activities: []
           }
         ];
-        // 自動切換到新地區
         state.selectedRegion = newRegionName;
         state.selectedDayId = 'day1';
         state.focusedLocation = null;
@@ -120,18 +117,30 @@ export const travelSlice = createSlice({
       state.selectedDayId = null;
       state.previewLocation = null;
       state.focusedLocation = state.userLocation;
+      state.navigationTarget = null;
     },
     selectDay: (state, action: PayloadAction<string>) => {
       state.selectedDayId = action.payload;
       state.focusedLocation = null;
+      state.navigationTarget = null;
     },
     setPreviewLocation: (state, action: PayloadAction<Activity | null>) => {
       state.previewLocation = action.payload;
-      if (action.payload) state.focusedLocation = null;
+      if (action.payload) {
+        state.focusedLocation = null;
+        state.navigationTarget = null;
+      }
     },
     setFocusedLocation: (state, action: PayloadAction<Location | null>) => {
       state.focusedLocation = action.payload;
       if (action.payload) state.previewLocation = null;
+    },
+    setNavigationTarget: (state, action: PayloadAction<Activity | null>) => {
+      state.navigationTarget = action.payload;
+      if (action.payload) {
+        state.focusedLocation = action.payload.location;
+        state.previewLocation = null;
+      }
     },
     setUserLocation: (state, action: PayloadAction<Location | null>) => {
       state.userLocation = action.payload;
@@ -169,7 +178,6 @@ export const travelSlice = createSlice({
       const dayPlan = state.plans[region]?.find(p => p.id === dayId);
       if (dayPlan) {
         dayPlan.activities.push(activity);
-        // 優化：新增成功後，將地圖聚焦在剛新增的景點上
         state.focusedLocation = activity.location;
       }
       state.previewLocation = null;
@@ -180,13 +188,16 @@ export const travelSlice = createSlice({
       if (dayPlan) {
         dayPlan.activities.splice(index, 1);
       }
+      if (state.navigationTarget?.name === dayPlan?.activities[index]?.name) {
+        state.navigationTarget = null;
+      }
     }
   },
 });
 
 export const { 
   selectRegion, addRegion, resetSelection, selectDay, addDay, deleteDay, 
-  setPreviewLocation, setFocusedLocation, setUserLocation, addActivity, removeActivity 
+  setPreviewLocation, setFocusedLocation, setUserLocation, setNavigationTarget, addActivity, removeActivity 
 } = travelSlice.actions;
 
 export default travelSlice.reducer;

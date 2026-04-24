@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Menu, X, MapPin, Calendar, Map as MapIcon, List, PlusCircle, Plus, MapPinPlus } from 'lucide-react';
+import { Menu, X, MapPin, Calendar, Map as MapIcon, List, PlusCircle, Plus, MapPinPlus, Navigation, Route } from 'lucide-react';
 import type { RootState } from './store';
-import { selectRegion, selectDay, removeActivity, addDay, deleteDay, setFocusedLocation, setUserLocation, resetSelection, addRegion } from './store/travelSlice';
+import { selectRegion, selectDay, removeActivity, addDay, deleteDay, setFocusedLocation, setUserLocation, resetSelection, addRegion, setNavigationTarget } from './store/travelSlice';
 import type { DayPlan, Activity, Location } from './store/travelSlice';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -25,7 +25,6 @@ function App() {
   const { regions, selectedRegion, plans, selectedDayId } = useSelector((state: RootState) => state.travel);
   const dispatch = useDispatch();
 
-  // 一開始就去抓實際位置
   useEffect(() => {
     if ("geolocation" in navigator) {
       const watchId = navigator.geolocation.watchPosition(
@@ -85,8 +84,13 @@ function App() {
     setViewMode('map');
   };
 
+  const handleStartNavigation = (activity: Activity) => {
+    dispatch(setNavigationTarget(activity)); // 設定地圖導航目標
+    setViewMode('map'); // 切換到地圖
+  };
+
   return (
-    <APIProvider apiKey={API_KEY} libraries={['places']}>
+    <APIProvider apiKey={API_KEY} libraries={['places', 'routes']}> {/* 加入 routes 庫 */}
       <div className="flex h-[100dvh] w-screen bg-gray-50 overflow-hidden font-sans text-slate-900 text-left">
         
         {isSidebarOpen && (
@@ -99,12 +103,7 @@ function App() {
         )}>
           <div className="p-4 border-b flex items-center justify-between min-h-[73px]">
             {(isSidebarOpen || window.innerWidth >= 768) && (
-              <button 
-                onClick={handleReset}
-                className={cn("font-bold text-xl text-blue-600 truncate hover:opacity-70 transition-opacity", !isSidebarOpen && "md:hidden")}
-              >
-                Travel Go
-              </button>
+              <button onClick={handleReset} className={cn("font-bold text-xl text-blue-600 truncate hover:opacity-70 transition-opacity", !isSidebarOpen && "md:hidden")}>Travel Go</button>
             )}
             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-gray-100 rounded-lg ml-auto">
               {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
@@ -123,16 +122,8 @@ function App() {
 
             {/* 新增地區輸入框 */}
             {isAddingRegion && isSidebarOpen && (
-              <div className="p-2 bg-blue-50/50 rounded-xl space-y-2 mb-4 border border-blue-100 animate-in slide-in-from-top-1">
-                <input 
-                  autoFocus
-                  type="text"
-                  placeholder="例如：泰國"
-                  value={newRegionName}
-                  onChange={(e) => setNewRegionName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleCreateRegion()}
-                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-400 shadow-sm"
-                />
+              <div className="p-2 bg-blue-50/50 rounded-xl space-y-2 mb-4 border border-blue-100">
+                <input autoFocus type="text" placeholder="例如：台北" value={newRegionName} onChange={(e) => setNewRegionName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleCreateRegion()} className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none shadow-sm" />
                 <div className="flex gap-2">
                   <button onClick={handleCreateRegion} className="flex-1 bg-blue-600 text-white text-xs py-1.5 rounded-lg font-bold">建立</button>
                   <button onClick={() => setIsAddingRegion(false)} className="flex-1 bg-gray-200 text-gray-600 text-xs py-1.5 rounded-lg font-bold">取消</button>
@@ -141,28 +132,11 @@ function App() {
             )}
 
             {regions.map((region: string) => (
-              <button
-                key={region}
-                onClick={() => handleRegionSelect(region)}
-                className={cn(
-                  "w-full flex items-center gap-3 p-3 rounded-xl transition-colors text-left",
-                  selectedRegion === region ? "bg-blue-50 text-blue-600 font-medium" : "text-gray-600 hover:bg-gray-50"
-                )}
-              >
+              <button key={region} onClick={() => handleRegionSelect(region)} className={cn("w-full flex items-center gap-3 p-3 rounded-xl transition-colors text-left", selectedRegion === region ? "bg-blue-50 text-blue-600 font-medium" : "text-gray-600 hover:bg-gray-50")}>
                 <MapIcon size={20} className="flex-shrink-0" />
                 {(isSidebarOpen || (window.innerWidth < 768)) && <span className="truncate">{region}</span>}
               </button>
             ))}
-
-            {/* 收折時的新增按鈕 */}
-            {!isSidebarOpen && window.innerWidth >= 768 && (
-              <button 
-                onClick={() => { setIsSidebarOpen(true); setIsAddingRegion(true); }}
-                className="w-full flex items-center justify-center p-3 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
-              >
-                <MapPinPlus size={20} />
-              </button>
-            )}
           </nav>
         </aside>
 
@@ -173,20 +147,13 @@ function App() {
                 <Menu size={24} />
               </button>
             )}
-            
             <div className="flex-1 min-w-0">
               {selectedRegion ? (
                 <h2 className="text-xl md:text-2xl font-bold text-gray-800 truncate">{selectedRegion} 行程規劃</h2>
               ) : (
-                <button 
-                  onClick={handleReset}
-                  className="text-xl md:text-2xl font-bold text-blue-600 hover:opacity-70 transition-opacity"
-                >
-                  Travel Go
-                </button>
+                <button onClick={handleReset} className="text-xl md:text-2xl font-bold text-blue-600 hover:opacity-70 transition-opacity">Travel Go</button>
               )}
             </div>
-            
             {selectedRegion && (
               <div className="flex bg-gray-100 p-1 rounded-lg md:hidden">
                 <button onClick={() => setViewMode('list')} className={cn("p-1.5 rounded-md transition-all", viewMode === 'list' ? "bg-white shadow-sm text-blue-600" : "text-gray-400")}>
@@ -203,43 +170,23 @@ function App() {
             <div className="px-4 py-3 md:px-6 md:py-4 bg-white flex items-center gap-4 overflow-x-auto no-scrollbar border-b shadow-sm z-20">
               {currentPlans.map((plan: DayPlan) => (
                 <div key={plan.id} className="relative group shrink-0">
-                  <button
-                    onClick={() => dispatch(selectDay(plan.id))}
-                    className={cn(
-                      "flex items-center gap-2 pl-4 pr-10 py-2 rounded-full border-2 transition-all text-sm md:text-base relative",
-                      selectedDayId === plan.id ? "shadow-md scale-105" : "border-transparent bg-gray-50 opacity-60 hover:opacity-100"
-                    )}
-                    style={{ 
-                      borderColor: selectedDayId === plan.id ? plan.color : 'transparent',
-                      backgroundColor: selectedDayId === plan.id ? `${plan.color}15` : undefined,
-                      color: selectedDayId === plan.id ? plan.color : '#64748b'
-                    }}
-                  >
+                  <button onClick={() => dispatch(selectDay(plan.id))} className={cn("flex items-center gap-2 pl-4 pr-10 py-2 rounded-full border-2 transition-all text-sm md:text-base relative", selectedDayId === plan.id ? "shadow-md scale-105" : "border-transparent bg-gray-50 opacity-60 hover:opacity-100")} style={{ borderColor: selectedDayId === plan.id ? plan.color : 'transparent', backgroundColor: selectedDayId === plan.id ? `${plan.color}15` : undefined, color: selectedDayId === plan.id ? plan.color : '#64748b' }}>
                     <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: plan.color }} />
                     <span className="font-bold whitespace-nowrap">{plan.id.toUpperCase()}</span>
                   </button>
-                  <button 
-                    onClick={(e) => handleDeleteDay(e, plan.id)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full hover:bg-red-500 hover:text-white text-gray-400 md:text-gray-300 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                  >
+                  <button onClick={(e) => handleDeleteDay(e, plan.id)} className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full hover:bg-red-500 hover:text-white text-gray-400 md:text-gray-300 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100">
                     <X size={14} />
                   </button>
                 </div>
               ))}
-              <button 
-                onClick={handleAddDay}
-                className="p-2 text-blue-500 hover:bg-blue-50 rounded-full transition-colors flex-shrink-0"
-              >
+              <button onClick={handleAddDay} className="p-2 text-blue-500 hover:bg-blue-50 rounded-full transition-colors flex-shrink-0">
                 <PlusCircle size={28} />
               </button>
             </div>
           )}
 
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-            <div className={cn(
-              "flex-1 overflow-y-auto p-4 md:p-8 md:w-1/2 transition-all duration-300",
-              (viewMode === 'map' || !selectedRegion) ? "hidden md:block" : "block"
-            )}>
+            <div className={cn("flex-1 overflow-y-auto p-4 md:p-8 md:w-1/2 transition-all duration-300", (viewMode === 'map' || !selectedRegion) ? "hidden md:block" : "block")}>
               {selectedRegion ? (
                 <div className="max-w-2xl mx-auto space-y-6 text-left">
                   <div className="bg-blue-50/50 p-4 rounded-3xl border border-blue-100 shadow-inner">
@@ -248,31 +195,30 @@ function App() {
                   </div>
 
                   {selectedDay ? (
-                    <div>
-                      <div className="flex items-center gap-3 mb-6 md:mb-8">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3 mb-4">
                         <Calendar className="text-gray-400 w-5 h-5 md:w-6 md:h-6" />
-                        <h3 className="text-lg md:text-2xl font-bold" style={{ color: selectedDay.color }}>
-                          {selectedDay.title}
-                        </h3>
+                        <h3 className="text-lg md:text-2xl font-bold" style={{ color: selectedDay.color }}>{selectedDay.title}</h3>
                       </div>
                       
                       <div className="space-y-4 md:space-y-6">
                         {selectedDay.activities.map((activity: Activity, index: number) => (
-                          <div key={index} className="flex items-start gap-4 md:gap-5 p-4 md:p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:border-blue-200 transition-all group active:scale-[0.98] md:active:scale-100">
-                            <div className="mt-0.5 w-8 h-8 md:w-10 md:h-10 rounded-full flex-shrink-0 flex items-center justify-center text-white font-black text-sm md:text-base shadow-inner" style={{ backgroundColor: selectedDay.color }}>
-                              {index + 1}
-                            </div>
+                          <div key={index} className="flex items-start gap-4 md:gap-5 p-4 md:p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:border-blue-200 transition-all group">
+                            <div className="mt-0.5 w-8 h-8 md:w-10 md:h-10 rounded-full flex-shrink-0 flex items-center justify-center text-white font-black text-sm md:text-base shadow-inner" style={{ backgroundColor: selectedDay.color }}>{index + 1}</div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between gap-2 text-left">
-                                <h4 className="font-bold text-base md:text-xl text-gray-800 truncate md:whitespace-normal">{activity.name}</h4>
-                                <button onClick={() => handleDeleteActivity(index)} className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0">
-                                  <X size={20} />
-                                </button>
+                                <h4 className="font-bold text-base md:text-xl text-gray-800 truncate">{activity.name}</h4>
+                                <button onClick={() => handleDeleteActivity(index)} className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"><X size={20} /></button>
                               </div>
-                              <div className="flex items-center gap-4 mt-2">
-                                <button onClick={() => handleViewOnMap(activity.location)} className="flex items-center gap-1.5 text-blue-500 text-xs md:text-sm font-medium hover:underline">
+                              <div className="flex items-center gap-4 mt-3">
+                                <button onClick={() => handleViewOnMap(activity.location)} className="flex items-center gap-1.5 text-blue-500 text-xs md:text-sm font-bold hover:bg-blue-50 px-2 py-1 rounded-lg transition-colors">
                                   <MapPin size={14} />
-                                  <span>在地圖上查看</span>
+                                  <span>查看地圖</span>
+                                </button>
+                                {/* 新增導航按鈕 */}
+                                <button onClick={() => handleStartNavigation(activity)} className="flex items-center gap-1.5 text-green-600 text-xs md:text-sm font-bold hover:bg-green-50 px-2 py-1 rounded-lg transition-colors border border-green-100">
+                                  <Route size={14} />
+                                  <span>規劃路線</span>
                                 </button>
                               </div>
                             </div>
@@ -281,26 +227,19 @@ function App() {
                       </div>
                     </div>
                   ) : (
-                    <div className="h-64 flex items-center justify-center text-gray-400 border-2 border-dashed border-gray-200 rounded-3xl italic text-left p-8">
-                      請點擊上方的「+」按鈕開始規劃行程！
-                    </div>
+                    <div className="h-64 flex items-center justify-center text-gray-400 border-2 border-dashed border-gray-200 rounded-3xl italic text-left p-8">請點擊上方的「+」按鈕開始規劃行程！</div>
                   )}
                 </div>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4 text-gray-400">
-                  <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center text-blue-400">
-                    <MapIcon size={40} />
-                  </div>
+                  <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center text-blue-400"><MapIcon size={40} /></div>
                   <h3 className="text-xl font-bold text-gray-700">準備好要去哪裡玩了嗎？</h3>
                   <p className="max-w-xs">請點選左側選單中的地區，或點擊「+」新增目的地。</p>
                 </div>
               )}
             </div>
 
-            <div className={cn(
-              "flex-1 md:w-1/2 border-l border-gray-200 transition-all duration-300",
-              (viewMode === 'list' && selectedRegion) ? "hidden md:block" : "block"
-            )}>
+            <div className={cn("flex-1 md:w-1/2 border-l border-gray-200 transition-all duration-300", (viewMode === 'list' && selectedRegion) ? "hidden md:block" : "block")}>
               <TravelMap />
             </div>
           </div>
