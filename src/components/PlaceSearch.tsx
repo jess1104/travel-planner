@@ -138,7 +138,11 @@ export default function PlaceSearch() {
           type="text"
           value={inputValue}
           onChange={(e) => {
-            setInputValue(e.target.value);
+            const val = e.target.value;
+            setInputValue(val);
+            if (!val.trim()) {
+              setSuggestions([]);
+            }
             if (selectedPlace) setSelectedPlace(null);
           }}
           placeholder="搜尋想去的景點..."
